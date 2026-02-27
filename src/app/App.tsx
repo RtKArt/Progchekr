@@ -40,10 +40,10 @@ export default function App() {
     registerPWA();
   }, []);
 
-  // Tick every 15 seconds to update live countdowns
+  // Tick every 10 seconds to update live countdowns
   const [, setTick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 15000);
+    const id = setInterval(() => setTick((t) => t + 1), 10000);
     return () => clearInterval(id);
   }, []);
 

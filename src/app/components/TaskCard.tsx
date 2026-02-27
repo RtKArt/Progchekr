@@ -28,11 +28,10 @@ function computeRemaining(deadline: number, preferredUnit: TimeUnit): { value: n
 
   if (minsLeft <= 0) return { value: 0, unit: "minutes" };
 
-  // Auto-adapt display unit based on remaining time
-  if (minsLeft < 1) return { value: Math.max(1, Math.ceil(minsLeft)), unit: "minutes" };
-  if (minsLeft < 120) return { value: Math.ceil(minsLeft), unit: "minutes" };
-  if (minsLeft < 48 * 60) return { value: parseFloat((minsLeft / 60).toFixed(1)), unit: "hours" };
-  return { value: parseFloat((minsLeft / (60 * 24)).toFixed(1)), unit: "days" };
+  // Days → Hours when under 24 hours, Hours → Minutes when under 60 minutes
+  if (minsLeft < 60) return { value: Math.ceil(minsLeft), unit: "minutes" };
+  if (minsLeft < 24 * 60) return { value: Math.round(minsLeft / 60 * 10) / 10, unit: "hours" };
+  return { value: Math.round(minsLeft / (60 * 24) * 10) / 10, unit: "days" };
 }
 
 function toMinutes(time: number, unit: TimeUnit): number {
