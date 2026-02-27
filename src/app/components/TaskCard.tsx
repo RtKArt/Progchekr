@@ -12,6 +12,27 @@ export interface Task {
   timeRemaining: number;
   timeUnit: TimeUnit;
   completed: boolean;
+  deadline: number; // timestamp in ms
+}
+
+export function timeUnitToMs(time: number, unit: TimeUnit): number {
+  if (unit === "days") return time * 24 * 60 * 60 * 1000;
+  if (unit === "hours") return time * 60 * 60 * 1000;
+  return time * 60 * 1000;
+}
+
+/** Compute remaining time from deadline, returns values in the best display unit */
+function computeRemaining(deadline: number, preferredUnit: TimeUnit): { value: number; unit: TimeUnit } {
+  const msLeft = Math.max(0, deadline - Date.now());
+  const minsLeft = msLeft / 60000;
+
+  if (minsLeft <= 0) return { value: 0, unit: "minutes" };
+
+  // Auto-adapt display unit based on remaining time
+  if (minsLeft < 1) return { value: Math.max(1, Math.ceil(minsLeft)), unit: "minutes" };
+  if (minsLeft < 120) return { value: Math.ceil(minsLeft), unit: "minutes" };
+  if (minsLeft < 48 * 60) return { value: parseFloat((minsLeft / 60).toFixed(1)), unit: "hours" };
+  return { value: parseFloat((minsLeft / (60 * 24)).toFixed(1)), unit: "days" };
 }
 
 function toMinutes(time: number, unit: TimeUnit): number {
@@ -46,9 +67,14 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, colors = DEFAULT_COLORS, projectLabel, onDelete, onToggle, onEdit, onDuplicate }: TaskCardProps) {
-  const bgColor = getCardColor(task.timeRemaining, task.timeUnit, task.completed, colors);
-  const unitLabel = formatUnitLabel(task.timeUnit);
-  const isUrgent = !task.completed && toMinutes(task.timeRemaining, task.timeUnit) <= 60;
+  // Compute live remaining time from deadline
+  const remaining = task.completed
+    ? { value: task.timeRemaining, unit: task.timeUnit }
+    : computeRemaining(task.deadline, task.timeUnit);
+
+  const bgColor = getCardColor(remaining.value, remaining.unit, task.completed, colors);
+  const unitLabel = formatUnitLabel(remaining.unit);
+  const isUrgent = !task.completed && toMinutes(remaining.value, remaining.unit) <= 60;
 
   const Wrapper = isUrgent ? motion.div : "div" as any;
   const wrapperProps = isUrgent
@@ -91,7 +117,7 @@ export function TaskCard({ task, colors = DEFAULT_COLORS, projectLabel, onDelete
             className="text-white text-[36px] leading-none"
             style={{ fontFamily: "'Bebas Neue', sans-serif" }}
           >
-            {task.timeRemaining}
+            {remaining.value}
           </span>
           <span
             className="text-white text-[14px] leading-none mt-1"

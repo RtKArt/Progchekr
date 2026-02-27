@@ -16,8 +16,20 @@ const UNIT_RANGES: Record<TimeUnit, { min: number; max: number }> = {
 export function TaskModal({ existingTask, onSave, onClose }: TaskModalProps) {
   const [title, setTitle] = useState(existingTask?.title ?? "");
   const [description, setDescription] = useState(existingTask?.description ?? "");
-  const [timeUnit, setTimeUnit] = useState<TimeUnit>(existingTask?.timeUnit ?? "hours");
-  const [time, setTime] = useState(existingTask?.timeRemaining ?? 4);
+
+  // When editing, compute current remaining time from deadline
+  const editTimeUnit = existingTask?.timeUnit ?? "hours";
+  const editTimeValue = existingTask
+    ? (() => {
+        const msLeft = Math.max(0, existingTask.deadline - Date.now());
+        if (editTimeUnit === "days") return Math.max(1, Math.round(msLeft / (24 * 60 * 60 * 1000)));
+        if (editTimeUnit === "hours") return Math.max(1, Math.round(msLeft / (60 * 60 * 1000)));
+        return Math.max(1, Math.round(msLeft / (60 * 1000)));
+      })()
+    : 4;
+
+  const [timeUnit, setTimeUnit] = useState<TimeUnit>(editTimeUnit);
+  const [time, setTime] = useState(editTimeValue);
   const isEditing = !!existingTask;
 
   const range = UNIT_RANGES[timeUnit];

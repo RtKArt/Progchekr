@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { TaskCard, Task, TimeUnit } from "./components/TaskCard";
+import { TaskCard, Task, TimeUnit, timeUnitToMs } from "./components/TaskCard";
 import { TaskModal } from "./components/TaskModal";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { ALL_TASKS_ID } from "./components/ProjectSidebar";
@@ -38,6 +38,13 @@ export default function App() {
   // Register PWA on mount
   useEffect(() => {
     registerPWA();
+  }, []);
+
+  // Tick every 15 seconds to update live countdowns
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 15000);
+    return () => clearInterval(id);
   }, []);
 
   const BG_IMAGE_KEY = "progchek_bg_image";
@@ -166,12 +173,13 @@ export default function App() {
   };
 
   const handleSaveTask = (title: string, description: string, time: number, unit: TimeUnit) => {
+    const newDeadline = Date.now() + timeUnitToMs(time, unit);
     if (editingTask) {
       if (isAllView) {
         updateTaskInProject(editingTask.id, (prev) =>
           prev.map((t) =>
             t.id === editingTask.id
-              ? { ...t, title, description, timeRemaining: time, timeUnit: unit }
+              ? { ...t, title, description, timeRemaining: time, timeUnit: unit, deadline: newDeadline }
               : t
           )
         );
@@ -179,7 +187,7 @@ export default function App() {
         updateTasks((prev) =>
           prev.map((t) =>
             t.id === editingTask.id
-              ? { ...t, title, description, timeRemaining: time, timeUnit: unit }
+              ? { ...t, title, description, timeRemaining: time, timeUnit: unit, deadline: newDeadline }
               : t
           )
         );
@@ -192,6 +200,7 @@ export default function App() {
         timeRemaining: time,
         timeUnit: unit,
         completed: false,
+        deadline: newDeadline,
       };
       if (isAllView) {
         // Add to the first project
@@ -218,6 +227,7 @@ export default function App() {
       id: Date.now().toString(),
       title: `${task.title} (copy)`,
       completed: false,
+      deadline: task.deadline, // preserve the same deadline
     };
     if (isAllView) {
       updateTaskInProject(task.id, (prev) => [...prev, dup]);
@@ -262,15 +272,10 @@ export default function App() {
     saveColors(colors);
   };
 
-  // Sort: incomplete first (sorted by urgency), then completed
-  const toMinutes = (t: Task) => {
-    if (t.timeUnit === "days") return t.timeRemaining * 24 * 60;
-    if (t.timeUnit === "hours") return t.timeRemaining * 60;
-    return t.timeRemaining;
-  };
+  // Sort: incomplete first (sorted by deadline urgency), then completed
   const sortedTasks = [...displayTasks].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return toMinutes(a) - toMinutes(b);
+    return a.deadline - b.deadline;
   });
 
   // Build a lookup for task -> project name (for all-view labels)
